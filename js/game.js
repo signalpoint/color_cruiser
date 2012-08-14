@@ -29,11 +29,36 @@ basketImage.onload = function () {
 };
 basketImage.src = "images/basket.png";
 
-// Game objects
+/*
+ * Game objects
+*/ 
 var frank = {
-	speed: 256 // movement in pixels per second
+	speed: 256, // movement in pixels per second
+	force: 0,
+	mass: 0,
+	acceleration: 9.8,
+	direction: 0,
+	modifier:0,
+	hangTime:0
 };
-var basket = {};
+// Draw a line at the center below Frank.
+var line = {
+  x1:0,
+  y1:0,
+  x2:0,
+  y2:0,
+  ready:false,
+  init:function(){
+    this.x1 = center_x-128,
+    this.y1 = center_y+frankImage.height;
+    this.x2 = center_x+128;
+    this.y2 = center_y+frankImage.height;
+    this.ready = true;
+  }
+};
+
+var basket = {
+};
 var basketsCaught = 0;
 
 // Handle keyboard controls
@@ -50,23 +75,28 @@ addEventListener("keyup", function (e) {
 // Reset the game when the player catches a basket.
 var reset = function () {
   
-  // Place the player back in the center of the canvas.
+  // Place the player back in the center of the canvas and reset his acceleration.
   frank.x = canvas.width / 2;
 	frank.y = canvas.height / 2;
+	frank.acceleration = 9.8;
+	frank.hangTime = 0;
 	
-	// Throw the basket somewhere on the screen randomly
+	// Throw the basket somewhere on the screen randomly, below the line.
 	basket.x = 32 + (Math.random() * (canvas.width - 64));
 	basket.y = 32 + (Math.random() * (canvas.height - 64));
+	if (basket.y < canvas.height/2) {
+	  basket.y = basket.y*2;
+	}
 };
 
 // Update game objects
-var update = function (modifier) {
-	if (38 in keysDown) { // Player holding up
+var update = function (modifier,now,then) {
+	/*if (38 in keysDown) { // Player holding up
 		frank.y -= frank.speed * modifier;
 	}
 	if (40 in keysDown) { // Player holding down
 		frank.y += frank.speed * modifier;
-	}
+	}*/
 	if (37 in keysDown) { // Player holding left
 		frank.x -= frank.speed * modifier;
 	}
@@ -77,6 +107,39 @@ var update = function (modifier) {
 	// Gravity...
 	// If there is nothing below Frank, make him drop.
 	//ctx.rect(frank.x,frankImage.width,frank.y,frankImage.height);
+	//frank.y += modifier;
+	
+	// Is Frank above the line?
+	if (
+	  frank.x >= line.x1 && 
+	  frank.x <= line.x2 && 
+	  frank.y <= line.y1) {
+	  // Frank is above the line.
+	}
+	else {
+	  // Frank is not above the line, is he above the bottom of the canvas?
+	  if (frank.y >= canvas.height) {
+	    reset();
+	  }
+    else {
+      
+      // Initiate gravity booster.
+      frank.y += modifier*frank.acceleration;
+      
+      // Record Frank's now and then time.
+      frank.now = now;
+      frank.then = then;
+      
+      // Accumulate Frank's hang time, when it reaches 1000, reset it and increase
+      // his acceleration.
+      /*frank.hangTime += frank.now-frank.then;
+      if (frank.hangTime >= 500) {
+        frank.hangTime = 0;
+        frank.acceleration += frank.acceleration;
+      }*/
+      frank.acceleration += frank.now-frank.then;
+	  }
+	}
 	
 	// Is Frank touching the basket?
 	if (
@@ -99,8 +162,11 @@ var render = function () {
   ctx.fillRect(0,0,canvas.width,canvas.height);
   
   // Draw a line at the center of the canvas, below Frank.
-  ctx.moveTo(center_x, center_y+frankImage.height);
-  ctx.lineTo(center_x+128,center_y+frankImage.height);
+  if (!line.ready) {
+    line.init();
+  }
+  ctx.moveTo(line.x1,line.y1);
+  ctx.lineTo(line.x2,line.y1);
   ctx.stroke();
 
 	if (frankReady) {
@@ -117,6 +183,21 @@ var render = function () {
 	ctx.textAlign = "left";
 	ctx.textBaseline = "top";
 	ctx.fillText("frankenDrupal Aces: " + basketsCaught, 32, 32);
+	
+	// Frank's GEO Location
+	ctx.fillStyle = "rgb(0, 0, 0)";
+	ctx.font = "24px Helvetica";
+	ctx.textAlign = "left";
+	ctx.textBaseline = "top";
+	/*ctx.fillText("(" + 
+	  frank.x + "," + 
+	  frank.y + ", " + 
+	  frank.acceleration + ", " +
+	  frank.now + ", " +
+	  frank.then + ", " +
+	  frank.hangTime + ", " +
+	")", 32, 92);*/
+	
 };
 
 // The main game loop
@@ -124,13 +205,13 @@ var main = function () {
 	var now = Date.now();
 	var delta = now - then;
 
-	update(delta / 1000);
+	update(delta / 1000,now,then);
 	render();
 
 	then = now;
 };
 
-// Let's play this game!
+// Let's play this stupid game!
 reset();
 var then = Date.now();
 setInterval(main, 1); // Execute as fast as possible
